@@ -121,7 +121,7 @@ options = ClaudeAgentOptions(
 새 프로젝트 디렉토리에서 실행합니다. 에이전트가 다음을 자동으로 수행합니다:
 
 1. **Git 저장소 검증** — 비-Git 디렉토리면 경고 출력 (중단하지 않음)
-2. **디렉토리 생성** — `rules/`, `memory/drafts/`, `plans/`, `.harness_data/fine_tuning/`
+2. **디렉토리 생성** — `rules/`, `memory/drafts/`, `plans/`, `.harness_data/fine_tuning/`, `.harness_data/rag_db/`
 3. **파일 생성** — `rules/MAP.md`, `memory/MEMORY.md`
 4. **글로벌 `~/.claude/CLAUDE.md`에 전역 규칙 주입** — 4대 원칙 + CRAM 운영 스펙 (나만 적용, 팀원 무영향)
 5. **프로젝트 `CLAUDE.md` 최소 생성** — 프로젝트 고유 규칙 작성용 템플릿
@@ -148,28 +148,87 @@ options = ClaudeAgentOptions(
 
 ### 2. 에피소딕 메모리 기록: `/cram-harness:commit-plan`
 
-작업을 마친 뒤 실행합니다. 에이전트가 다음을 수행합니다:
+작업을 마친 뒤 실행합니다. **Layer 7 3-Phase 파이프라인**으로 에피소드를 기록합니다:
 
-1. **질문** — 도메인(DOMAIN), 핵심 의도(WHY), 폐기된 접근법(FAILED)을 묻습니다
-2. **기록** — 인라인 Python3 코드로 두 곳에 동시 기록:
-   - `memory/MEMORY.md` — 사람이 읽기 좋은 마크다운 포맷
-   - `.harness_data/fine_tuning/experiences.jsonl` — 파인튜닝용 JSONL
-3. **완료 알림** — 기록된 커밋 해시와 함께 플랜 종료를 알립니다
+1. **질문** — 도메인(DOMAIN), 핵심 의도(WHY), 폐기된 접근법(FAILED), 장애 등급(SEVERITY)을 묻습니다
+2. **Phase 1 적재** — 인라인 Python3 코드로 세 곳에 동시 기록:
+
+   | 출력 | 경로 | 용도 |
+   |------|------|------|
+   | MEMORY.md | `memory/MEMORY.md` | 사람 읽기용 에피소딕 메모리 |
+   | JSONL | `.harness_data/fine_tuning/experiences.jsonl` | 파인튜닝 텔레메트리 |
+   | YAML | `.harness_data/rag_db/postmortem.yaml` | RAG 검색용 포스트모템 |
+
+3. **Phase 2 (TODO)** — 패턴 분석: 도메인별 실패 패턴 집계 및 반복 실패 경고
+4. **Phase 3 (TODO)** — 파인튜닝 데이터셋 변환: JSONL → OpenAI fine-tuning 포맷
+
+**추가된 필드:**
+- `episode_id` — SHA256 기반 고유 에피소드 ID (12자)
+- `timestamp` — UTC ISO 8601 타임스탬프
+- `branch` — 현재 Git 브랜치명
+- `severity` — 장애 등급 (`SEV-1` ~ `SEV-3` 또는 `none`)
 
 **기록 포맷 예시:**
 
 ```markdown
 # memory/MEMORY.md
-- [2026-02-25] [DOMAIN: auth] -> [COMMIT: a1b2c3d]
+- [2026-02-25] [a1b2c3d4e5f6] [DOMAIN: auth] -> [COMMIT: a1b2c3d] (feat/oauth)
   - [WHAT] OAuth2 리프레시 토큰 자동 갱신 구현
   - [WHY] 사용자 세션 만료 시 재로그인 UX 개선
   - [FAILED] Redis TTL 기반 갱신 → 분산 환경에서 동기화 불가
+  - [SEVERITY] SEV-2
 ```
 
 ```json
 // .harness_data/fine_tuning/experiences.jsonl (한 줄)
-{"date": "2026-02-25", "domain": "auth", "commit": "a1b2c3d", "what": "OAuth2 리프레시 토큰 자동 갱신 구현", "why": "사용자 세션 만료 시 재로그인 UX 개선", "failed": "Redis TTL 기반 갱신 → 분산 환경에서 동기화 불가"}
+{"episode_id": "a1b2c3d4e5f6", "timestamp": "2026-02-25T09:30:00+00:00", "date": "2026-02-25", "domain": "auth", "branch": "feat/oauth", "commit": "a1b2c3d", "what": "OAuth2 리프레시 토큰 자동 갱신 구현", "why": "사용자 세션 만료 시 재로그인 UX 개선", "failed": "Redis TTL 기반 갱신 → 분산 환경에서 동기화 불가", "severity": "SEV-2"}
 ```
+
+```yaml
+# .harness_data/rag_db/postmortem.yaml
+---
+episode_id: a1b2c3d4e5f6
+timestamp: "2026-02-25T09:30:00+00:00"
+domain: auth
+branch: feat/oauth
+commit: a1b2c3d
+severity: SEV-2
+what: "OAuth2 리프레시 토큰 자동 갱신 구현"
+why: "사용자 세션 만료 시 재로그인 UX 개선"
+failed: "Redis TTL 기반 갱신 → 분산 환경에서 동기화 불가"
+```
+
+---
+
+---
+
+## 실전 워크플로우 (Daily Routine)
+
+```
+┌─ 1. Plan ──────────────────────────────────────┐
+│  Claude 세션 시작 → /cram-harness:setup (최초 1회) │
+│  → 오늘 할 작업 플랜 수립                         │
+├─ 2. Execute ───────────────────────────────────┤
+│  코드 작성 / 디버깅 / 리팩터링                     │
+│  (CRAM 규칙이 자동으로 에이전트 행동을 제어)        │
+├─ 3. Commit ────────────────────────────────────┤
+│  /cram-harness:commit-plan                      │
+│  → DOMAIN, WHY, FAILED, SEVERITY 입력           │
+│  → Phase 1 자동 적재 (MEMORY + JSONL + YAML)     │
+├─ 4. Wrap-up ───────────────────────────────────┤
+│  컨텍스트 80% 차면 /compact                      │
+│  다음 세션에서 memory/MEMORY.md 참조              │
+└────────────────────────────────────────────────┘
+```
+
+> **꿀팁: 원스톱 자율주행 커밋**
+>
+> 작업이 끝난 뒤 Claude에게 이렇게만 말하면 됩니다:
+>
+> > "이 작업 커밋하고 commit-plan까지 자동으로 실행해줘. 도메인은 auth, 의도는 토큰 갱신 개선, 실패한 방법은 Redis TTL, 장애 등급은 SEV-2"
+>
+> Claude가 `git commit` → `/cram-harness:commit-plan` → 에피소딕 메모리 기록까지 한번에 처리합니다.
+> DOMAIN, WHY, FAILED, SEVERITY를 미리 제공하면 질문 단계도 스킵!
 
 ---
 

@@ -31,6 +31,7 @@ git rev-parse --is-inside-work-tree
 - `memory/drafts/`
 - `plans/`
 - `.harness_data/fine_tuning/`
+- `.harness_data/rag_db/`
 
 ---
 
