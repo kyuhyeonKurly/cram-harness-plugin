@@ -19,30 +19,100 @@ cram-harness-plugin/
 └── README.md
 ```
 
-## 설치 방법
+> **공식 규격**: 플러그인 루트에 `.claude-plugin/plugin.json`이 반드시 존재해야 합니다.  
+> 자세한 스펙은 [Plugins Reference](https://code.claude.com/docs/en/plugins-reference)를 참고하세요.
 
-### CLI 설치
+---
+
+## Quick Start (CLI)
+
+```bash
+# 1. 플러그인 클론 (최초 1회)
+git clone https://github.com/kyuhyeonKurly/cram-harness-plugin.git ~/plugins/cram-harness-plugin
+
+# 2. 타겟 프로젝트에서 Claude Code 실행
+cd /path/to/your-project
+claude --plugin-dir ~/plugins/cram-harness-plugin
+
+# 3. 세션 안에서 프로젝트 초기화
+#    /cram-harness:setup
+
+# 4. 작업 완료 후 에피소딕 메모리 기록
+#    /cram-harness:commit-plan
+```
+
+---
+
+## 설치 및 적용 방법
+
+### 방법 1: 로컬 클론 + 직접 로딩 (개발/테스트 추천)
+
+플러그인을 전역 설치 없이 로컬에서 바로 사용할 수 있습니다.
+
+**Step 1.** 플러그인 클론
+
+```bash
+git clone https://github.com/kyuhyeonKurly/cram-harness-plugin.git ~/plugins/cram-harness-plugin
+```
+
+**Step 2.** 타겟 프로젝트에서 Claude Code 실행
+
+```bash
+cd ~/Documents/Company/your-target-project
+claude --plugin-dir ~/plugins/cram-harness-plugin
+```
+
+또는 Agent SDK (Python):
+
+```python
+from claude_agent_sdk import query, ClaudeAgentOptions
+
+options = ClaudeAgentOptions(
+    plugins=[{"type": "local", "path": "~/plugins/cram-harness-plugin"}],
+)
+
+async for message in query(prompt="Hello", options=options):
+    if message.type == "system" and message.subtype == "init":
+        print("Plugins:", message.data.get("plugins"))
+        print("Commands:", message.data.get("slash_commands"))
+```
+
+**Step 3.** 로딩 확인
+
+세션 시작 시 init 메시지에 아래가 표시되면 성공:
 
 ```
-/plugin marketplace add <your-org>/cram-harness-plugin
+✓ Plugin loaded: cram-harness
+✓ Commands: cram-harness:setup, cram-harness:commit-plan
+```
+
+### 방법 2: 프로젝트 레포에 포함 (팀 전체 적용)
+
+프로젝트 레포에 서브모듈로 포함하면 팀원 전체가 동일한 규칙을 사용합니다.
+
+```bash
+# 프로젝트 루트에서
+git submodule add https://github.com/kyuhyeonKurly/cram-harness-plugin.git .plugins/cram-harness
+```
+
+Agent SDK에서 상대 경로로 로딩:
+
+```python
+options = ClaudeAgentOptions(
+    plugins=[{"type": "local", "path": "./.plugins/cram-harness"}],
+)
+```
+
+### 방법 3: CLI 글로벌 설치
+
+```bash
+# Claude Code 내에서
 /plugin install cram-harness
 ```
 
-### Agent SDK (Python)
+설치 경로: `~/.claude/plugins/cram-harness/`
 
-```python
-from claude_agent_sdk import query
-
-async for message in query(
-    prompt="Hello",
-    options={
-        "plugins": [
-            {"type": "local", "path": "./cram-harness-plugin"}
-        ]
-    }
-):
-    pass
-```
+---
 
 ## 사용법
 
@@ -61,10 +131,14 @@ async for message in query(
 |------|------|
 | 4대 원칙 | YAGNI, DIP, WWHP, OSL |
 | 금지 패턴 | No Tool Shuffling, 가변 정보 포함 금지, 모델 교체 금지 |
+| 하네스 계층 | STATIC → PROJECT → CAPABILITY → DYNAMIC (변경 엄금) |
 | Linter 룰 | Git 커밋 전 자가 검열 (Self-Correction) |
-| Plan Mode | 프리픽스 유지를 위한 Read-only 모드 |
+| Plan Mode | 프리픽스 유지를 위한 Read-only 모드 (`EnterPlanMode` / `ExitPlanMode`) |
 | 컴팩션 | 컨텍스트 80% 시 5줄 요약 + `/compact` |
 | system-reminder | `[CATEGORY] {주제} \| [INFO] {내용}` 포맷 |
+| SEV 기준 | SEV-1(캐시 히트율 급락), SEV-2(컴팩션 후 불일치), SEV-3(reminder 누락) |
+| Cache-Safe Forking | 서브에이전트 spawn 시 부모 프리픽스 유지, 모델 전환은 handoff |
+| 지식 전달 경로 | 영구 → rules/MEMORY.md, 세션 내 → system-reminder, 교차 세션 → append |
 
 ### 2. 에피소딕 메모리 기록: `/cram-harness:commit-plan`
 
@@ -91,6 +165,30 @@ async for message in query(
 {"date": "2026-02-25", "domain": "auth", "commit": "a1b2c3d", "what": "OAuth2 리프레시 토큰 자동 갱신 구현", "why": "사용자 세션 만료 시 재로그인 UX 개선", "failed": "Redis TTL 기반 갱신 → 분산 환경에서 동기화 불가"}
 ```
 
+---
+
+## 트러블슈팅
+
+### 플러그인이 로딩되지 않을 때
+
+1. **경로 확인** — `.claude-plugin/plugin.json`이 있는 루트 디렉토리를 가리키고 있는지 확인
+2. **plugin.json 검증** — `python3 -m json.tool .claude-plugin/plugin.json`으로 JSON 문법 확인
+3. **파일 권한** — 플러그인 디렉토리가 읽기 가능한지 확인
+
+### 커맨드가 작동하지 않을 때
+
+1. **네임스페이스 사용** — 플러그인 커맨드는 `cram-harness:커맨드명` 형식이 필수
+2. **init 메시지 확인** — `slash_commands`에 커맨드가 표시되는지 확인
+3. **커맨드 파일 검증** — `commands/` 디렉토리 안에 `.md` 파일이 있는지 확인
+
+### 경로 해석 문제
+
+1. **작업 디렉토리 확인** — 상대 경로는 현재 작업 디렉토리 기준으로 해석됨
+2. **절대 경로 사용** — 안정성을 위해 절대 경로 권장
+3. **경로 정규화** — Python의 `pathlib.Path`를 사용하여 경로 구성
+
+---
+
 ## 왜 skills/를 안 쓰나요?
 
 Claude Code SDK에서 `skills/`는 에이전트가 **필요할 때 능동적으로 호출하는 온디맨드 도구**(예: DB 조회, API 호출)를 위한 디렉토리입니다. YAGNI, DIP 같은 **전역 행동 강령**을 `skills/`에 넣으면, 에이전트가 해당 스킬을 호출하지 않는 한 규칙을 전혀 인지하지 못합니다.
@@ -103,6 +201,23 @@ Claude Code SDK에서 `skills/`는 에이전트가 **필요할 때 능동적으�
 |------|------|------|
 | Python3 | JSONL 생성 (에피소딕 메모리) | macOS: 기본 탑재 / Linux: `apt install python3` |
 | Git | 커밋 해시 추출 (선택) | 미설치 시 `uncommitted`으로 대체 |
+
+## 참고 자료
+
+### 공식 문서
+
+- [Plugins](https://code.claude.com/docs/en/plugins) — 플러그인 개발 가이드
+- [Plugins Reference](https://code.claude.com/docs/en/plugins-reference) — 기술 스펙 및 스키마
+- [Plugins in the SDK](https://platform.claude.com/docs/en/agent-sdk/plugins) — SDK 플러그인 로딩
+- [Slash Commands (SDK)](https://platform.claude.com/docs/en/agent-sdk/slash-commands) — SDK 슬래시 커맨드
+- [Subagents (SDK)](https://platform.claude.com/docs/en/agent-sdk/subagents) — 서브에이전트 연동
+
+### 하네스 설계 참고
+
+이 플러그인의 CRAM 하네스 구조를 설계할 때 참고한 자료입니다:
+
+- [@trq212 — 에이전트 하네스 아키텍처 논의](https://x.com/trq212/status/2024574133011673516)
+- [@koylanai — CRAM 패턴과 프리픽스 캐시 최적화 전략](https://x.com/koylanai/status/2025286163641118915)
 
 ## 라이선스
 
