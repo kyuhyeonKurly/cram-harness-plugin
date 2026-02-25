@@ -1,0 +1,6 @@
+{
+  "name": "cram-harness",
+  "version": "2.0.0",
+  "description": "사내 표준 CRAM 아키텍처 및 에피소딕 메모리 관리 플러그인",
+  "author": "CRAM Team"
+}
