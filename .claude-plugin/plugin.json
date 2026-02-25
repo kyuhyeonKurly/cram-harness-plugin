@@ -1,6 +1,8 @@
 {
   "name": "cram-harness",
   "version": "1.0.0",
-  "description": "CRAM 아키텍처 및 에피소딕 메모리 관리 플러그인 — 전역 규칙 주입, 에피소딕 메모리 자동 적재",
-  "author": "jokerLee"
+  "description": "CRAM 에피소딕 메모리 관리 플러그인",
+  "author": {
+    "name": "jokerLee"
+  }
 }
