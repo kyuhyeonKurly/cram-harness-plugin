@@ -1,5 +1,5 @@
 ---
-description: "CRAM Harness V2 프로젝트 뼈대를 생성하고, 전역 규칙을 CLAUDE.md에 주입합니다."
+description: "CRAM Harness V2 프로젝트 뼈대를 생성하고, 전역 규칙을 글로벌 CLAUDE.md에 주입합니다."
 ---
 
 # /cram-harness:setup — 프로젝트 초기화
@@ -54,13 +54,13 @@ git rev-parse --is-inside-work-tree
 
 ---
 
-## 4단계: CLAUDE.md 생성 + 전역 규칙 주입 (핵심)
+## 4단계: 글로벌 CLAUDE.md에 전역 규칙 주입 (핵심)
 
-**`CLAUDE.md` 파일이 이미 존재하면 덮어쓰지 않는다.** 존재하지 않을 때만 아래 내용으로 생성한다:
+전역 규칙은 **프로젝트가 아닌 사용자 글로벌 설정**에 넣는다. 이렇게 하면 팀원에게 영향 없이 나만의 에이전트 행동 규칙을 적용할 수 있다.
+
+**`~/.claude/CLAUDE.md` 파일이 이미 존재하면 덮어쓰지 않는다.** 존재하지 않을 때만 아래 내용으로 생성한다. 이미 존재하면, `## CRAM Protocol` 섹션이 있는지 확인하고 없을 때만 파일 끝에 Append한다.
 
 ```markdown
-# 프로젝트 아키텍처 & 도메인
-
 ## 전역 가이드라인 (Global Harness)
 
 모든 응답과 코드 생성 시 아래 원칙을 최우선으로 적용한다.
@@ -79,7 +79,7 @@ git rev-parse --is-inside-work-tree
 ## CRAM Protocol — 운영 스펙
 
 ### Linter 에이전트 룰 (Self-Correction)
-- Git 커밋 직전, 결과물이 이 문서의 원칙(YAGNI, DIP)과 프로젝트 `rules/`에 위배되지 않는지 자가 검열해야 한다. 위배 시 계획을 수정한다.
+- Git 커밋 직전, 결과물이 전역 원칙(YAGNI, DIP)과 프로젝트 `rules/`에 위배되지 않는지 자가 검열해야 한다. 위배 시 계획을 수정한다.
 
 ### Cache-Safe Forking & Plan Mode
 - Plan Mode 진입 시 프리픽스 유지를 위해 파일 수정을 금지한다 (Read-only 모드).
@@ -92,22 +92,34 @@ git rev-parse --is-inside-work-tree
 ### system-reminder 포맷
 런타임 업데이트가 필요할 때는 아래 포맷을 사용한다:
 `<system-reminder> [CATEGORY] {주제} | [INFO] {내용} </system-reminder>`
-
-<!-- ═══════════════════════════════════════════════ -->
-<!-- 프로젝트 고유 규칙은 이 아래에 추가하세요         -->
-<!-- ═══════════════════════════════════════════════ -->
 ```
 
 ---
 
-## 5단계: 완료 보고
+## 5단계: 프로젝트 CLAUDE.md 생성 (최소한)
+
+**프로젝트 루트의 `CLAUDE.md` 파일이 이미 존재하면 덮어쓰지 않는다.** 존재하지 않을 때만 아래 최소 내용으로 생성한다:
+
+```markdown
+# 프로젝트 아키텍처 & 도메인
+
+<!-- 프로젝트 고유 규칙을 여기에 작성하세요 -->
+<!-- 전역 규칙(4대 원칙, CRAM 스펙)은 ~/.claude/CLAUDE.md에 있습니다 -->
+```
+
+---
+
+## 6단계: 완료 보고
 
 아래 메시지를 출력한다:
 
 > ✅ CRAM Harness V2 프로젝트 초기화 완료!
 >
-> 생성된 구조:
-> - `CLAUDE.md` — 전역 규칙 주입 완료 (4대 원칙 + CRAM 스펙)
+> **글로벌 (나만 적용, 팀원 영향 없음):**
+> - `~/.claude/CLAUDE.md` — 전역 규칙 주입 완료 (4대 원칙 + CRAM 스펙)
+>
+> **프로젝트 (팀 공유):**
+> - `CLAUDE.md` — 프로젝트 고유 규칙 (최소 템플릿)
 > - `rules/MAP.md` — 도메인 라우팅 맵
 > - `memory/MEMORY.md` — 에피소딕 메모리 로그
 > - `plans/` — 플랜 관리 디렉토리

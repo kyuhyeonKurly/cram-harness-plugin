@@ -123,22 +123,28 @@ options = ClaudeAgentOptions(
 1. **Git 저장소 검증** — 비-Git 디렉토리면 경고 출력 (중단하지 않음)
 2. **디렉토리 생성** — `rules/`, `memory/drafts/`, `plans/`, `.harness_data/fine_tuning/`
 3. **파일 생성** — `rules/MAP.md`, `memory/MEMORY.md`
-4. **CLAUDE.md 전역 규칙 주입** — 4대 원칙 + CRAM 운영 스펙을 프로젝트 `CLAUDE.md`에 하드코딩
+4. **글로벌 `~/.claude/CLAUDE.md`에 전역 규칙 주입** — 4대 원칙 + CRAM 운영 스펙 (나만 적용, 팀원 무영향)
+5. **프로젝트 `CLAUDE.md` 최소 생성** — 프로젝트 고유 규칙 작성용 템플릿
 
-생성된 `CLAUDE.md`에 포함되는 규칙:
+#### 글로벌 vs 프로젝트 분리 구조
+
+| 위치 | 내용 | 팀원 영향 |
+|------|------|-----------|
+| `~/.claude/CLAUDE.md` | 4대 원칙 + CRAM 스펙 (전역 규칙) | **없음** (내 로컬만) |
+| 프로젝트 `CLAUDE.md` | 프로젝트 고유 규칙 템플릿 | 공유 가능 |
+| 프로젝트 `memory/`, `rules/` | 에피소딕 메모리, 도메인 맵 | 내가 설정한 것만 |
+
+`~/.claude/CLAUDE.md`에 주입되는 규칙:
 
 | 구분 | 내용 |
 |------|------|
 | 4대 원칙 | YAGNI, DIP, WWHP, OSL |
 | 금지 패턴 | No Tool Shuffling, 가변 정보 포함 금지, 모델 교체 금지 |
-| 하네스 계층 | STATIC → PROJECT → CAPABILITY → DYNAMIC (변경 엄금) |
 | Linter 룰 | Git 커밋 전 자가 검열 (Self-Correction) |
-| Plan Mode | 프리픽스 유지를 위한 Read-only 모드 (`EnterPlanMode` / `ExitPlanMode`) |
+| Plan Mode | 프리픽스 유지를 위한 Read-only 모드 |
 | 컴팩션 | 컨텍스트 80% 시 5줄 요약 + `/compact` |
 | system-reminder | `[CATEGORY] {주제} \| [INFO] {내용}` 포맷 |
-| SEV 기준 | SEV-1(캐시 히트율 급락), SEV-2(컴팩션 후 불일치), SEV-3(reminder 누락) |
 | Cache-Safe Forking | 서브에이전트 spawn 시 부모 프리픽스 유지, 모델 전환은 handoff |
-| 지식 전달 경로 | 영구 → rules/MEMORY.md, 세션 내 → system-reminder, 교차 세션 → append |
 
 ### 2. 에피소딕 메모리 기록: `/cram-harness:commit-plan`
 
