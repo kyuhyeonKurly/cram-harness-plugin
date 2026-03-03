@@ -46,6 +46,7 @@ cram-harness-plugin/
 │   └── plugin.json              # 플러그인 매니페스트 (v1.0.0)
 ├── commands/
 │   ├── setup.md                 # /cram-harness:setup
+│   ├── map.md                   # /cram-harness:map
 │   └── commit-plan.md           # /cram-harness:commit-plan
 └── README.md
 ```
@@ -114,7 +115,7 @@ async for message in query(prompt="Hello", options=options):
 
 ```
 ✓ Plugin loaded: cram-harness
-✓ Commands: cram-harness:setup, cram-harness:commit-plan
+✓ Commands: cram-harness:setup, cram-harness:map, cram-harness:commit-plan
 ```
 
 ### 방법 2: 프로젝트 레포에 포함 (팀 전체 적용)
@@ -176,6 +177,41 @@ options = ClaudeAgentOptions(
 | 컴팩션 | 컨텍스트 80% 시 5줄 요약 + `/compact` |
 | system-reminder | `[CATEGORY] {주제} \| [INFO] {내용}` 포맷 |
 | Cache-Safe Forking | 서브에이전트 spawn 시 부모 프리픽스 유지, 모델 전환은 handoff |
+
+### 2.5. 도메인 라우팅 맵 관리: `/cram-harness:map`
+
+`/cram-harness:setup` 직후 또는 프로젝트 구조가 크게 바뀐 뒤 실행합니다. 에이전트가 프로젝트 디렉토리를 자동 분석하여 `.cram-harness/rules/MAP.md`를 생성하거나 업데이트합니다.
+
+#### 동작 모드
+
+| 모드 | 조건 | 동작 |
+|------|------|------|
+| **Draft** | MAP.md 없음 또는 빈 템플릿 | 디렉토리 트리·스택 분석 → 도메인 테이블 초안 생성 |
+| **Update** | MAP.md에 기존 도메인 행 존재 | 최근 10커밋 변경 분석 → 신규 도메인 병합 후 재작성 |
+
+#### MAP.md 표준 스키마
+
+```markdown
+# 🗺️ Project Knowledge Map (Domain Routing)
+
+<!-- CRAM Harness 자동 생성 | 마지막 업데이트: 2026-03-03 -->
+
+## Domain Routing Table
+
+| 도메인 | 키워드 | 파일 패턴 | 설명 |
+|--------|--------|----------|------|
+| auth   | oauth, jwt, session, token, login | `src/auth/`, `*auth*`, `*login*` | 인증/인가 |
+| api    | rest, endpoint, controller, route | `src/api/`, `routes/`            | API 레이어 |
+```
+
+이 포맷은 `commit-plan`의 DOMAIN 추론이 "키워드 ↔ 도메인" 테이블로 파싱하여 자동 교차 검증하는 데 사용됩니다.
+
+#### 실행 모드
+
+- **Normal 모드**: 추론된 테이블 미리보기 후 1회 확인
+- **Turbo 모드**: `"알아서"`, `"자동으로"` 등 트리거 키워드 감지 시 즉시 작성
+
+---
 
 ### 2. 에피소딕 메모리 기록: `/cram-harness:commit-plan`
 
@@ -250,6 +286,7 @@ failed: "Redis TTL 기반 갱신 → 분산 환경에서 동기화 불가"
 ```
 ┌─ 1. Plan ──────────────────────────────────────┐
 │  Claude 세션 시작 → /cram-harness:setup (최초 1회) │
+│  → /cram-harness:map (최초 1회)                  │
 │  → 오늘 할 작업 플랜 수립                         │
 ├─ 2. Execute ───────────────────────────────────┤
 │  코드 작성 / 디버깅 / 리팩터링                     │

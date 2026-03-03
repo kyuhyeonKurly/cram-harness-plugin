@@ -138,7 +138,7 @@ touch .cram-harness/data/rag_db/.gitkeep
 
 ---
 
-## 6단계: 완료 보고
+## 6단계: 완료 보고 + 도메인 맵 체이닝
 
 아래 메시지를 출력한다:
 
@@ -149,11 +149,24 @@ touch .cram-harness/data/rag_db/.gitkeep
 >
 > **프로젝트 (팀 공유):**
 > - `CLAUDE.md` — 프로젝트 고유 규칙 (최소 템플릿)
-> - `.cram-harness/rules/MAP.md` — 도메인 라우팅 맵
+> - `.cram-harness/rules/MAP.md` — 도메인 라우팅 맵 (빈 템플릿)
 > - `.cram-harness/memory/MEMORY.md` — 에피소딕 메모리 로그
 > - `.cram-harness/plans/` — 플랜 관리 디렉토리
 > - `.cram-harness/data/fine_tuning/` — 텔레메트리 데이터
 >
 > **참고:** Claude 네이티브 메모리(`~/.claude/projects/`)는 세션 연속성을, CRAM은 구조화된 에피소딕 러닝을 담당합니다. 두 시스템은 보완 관계입니다.
->
-> 다음 단계: 작업을 마친 후 `/cram-harness:commit-plan`을 실행하여 에피소딕 메모리를 기록하세요.
+
+완료 메시지 출력 **직후**, 아래 질문을 **1회** 한다:
+
+> 🗺️ 도메인 라우팅 맵(MAP.md) 초안을 지금 바로 생성할까요?
+> 프로젝트 디렉토리를 분석해 자동으로 작성합니다.
+> → "네" / "나중에" (기본값: 나중에)
+
+응답에 따라 분기한다:
+
+- **"네"** 응답 시: setup을 종료하지 않고 `/cram-harness:map`의 **2단계(Draft 모드)**부터 인라인으로 이어서 실행한다. map 커맨드의 1단계(상태 감지)는 건너뛴다 — 이미 Draft 모드임을 알고 있으므로.
+- **"나중에"** 또는 무응답 시: 아래 안내만 출력하고 종료한다.
+
+> 다음 단계:
+> 1. `/cram-harness:map`  → 도메인 라우팅 맵 초안 작성 (최초 1회 권장)
+> 2. 작업 완료 후 `/cram-harness:commit-plan` → 에피소딕 메모리 기록
