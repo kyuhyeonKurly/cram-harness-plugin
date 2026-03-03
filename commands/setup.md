@@ -21,17 +21,45 @@ git rev-parse --is-inside-work-tree
 
 > ⚠️ 경고: 현재 디렉토리는 Git 저장소가 아닙니다. `commit-plan` 명령 사용 시 커밋 해시 추적이 비활성화됩니다. `git init`을 먼저 실행하는 것을 권장합니다.
 
+### 마이그레이션: 구 구조 자동 이전
+
+Git 검증 후, 구 경로가 존재하면 새 `.cram-harness/` 구조로 자동 이전한다:
+
+```bash
+if [ -d "memory" ] && [ ! -d ".cram-harness/memory" ]; then
+  mv memory .cram-harness/memory
+fi
+if [ -d "rules" ] && [ ! -d ".cram-harness/rules" ]; then
+  mv rules .cram-harness/rules
+fi
+if [ -d "plans" ] && [ ! -d ".cram-harness/plans" ]; then
+  mv plans .cram-harness/plans
+fi
+if [ -d ".harness_data" ] && [ ! -d ".cram-harness/data" ]; then
+  mv .harness_data .cram-harness/data
+fi
+```
+
 ---
 
 ## 2단계: 디렉토리 구조 생성
 
 아래 디렉토리를 모두 생성한다 (이미 존재하면 건너뛴다):
 
-- `rules/`
-- `memory/drafts/`
-- `plans/`
-- `.harness_data/fine_tuning/`
-- `.harness_data/rag_db/`
+- `.cram-harness/rules/`
+- `.cram-harness/memory/drafts/`
+- `.cram-harness/plans/`
+- `.cram-harness/data/fine_tuning/`
+- `.cram-harness/data/rag_db/`
+
+빈 디렉토리가 Git에 추적되도록 `.gitkeep`을 추가한다:
+
+```bash
+touch .cram-harness/memory/drafts/.gitkeep
+touch .cram-harness/plans/.gitkeep
+touch .cram-harness/data/fine_tuning/.gitkeep
+touch .cram-harness/data/rag_db/.gitkeep
+```
 
 ---
 
@@ -39,14 +67,14 @@ git rev-parse --is-inside-work-tree
 
 아래 파일을 생성한다. **이미 존재하는 파일은 덮어쓰지 않는다** (데이터 보호):
 
-### `rules/MAP.md`
+### `.cram-harness/rules/MAP.md`
 
 ```markdown
 # 🗺️ Project Knowledge Map (Domain Routing)
 <!-- 프로젝트 도메인별 지식 라우팅 맵을 여기에 작성하세요 -->
 ```
 
-### `memory/MEMORY.md`
+### `.cram-harness/memory/MEMORY.md`
 
 ```markdown
 # Episodic Memory Log
@@ -80,7 +108,7 @@ git rev-parse --is-inside-work-tree
 ## CRAM Protocol — 운영 스펙
 
 ### Linter 에이전트 룰 (Self-Correction)
-- Git 커밋 직전, 결과물이 전역 원칙(YAGNI, DIP)과 프로젝트 `rules/`에 위배되지 않는지 자가 검열해야 한다. 위배 시 계획을 수정한다.
+- Git 커밋 직전, 결과물이 전역 원칙(YAGNI, DIP)과 프로젝트 `.cram-harness/rules/`에 위배되지 않는지 자가 검열해야 한다. 위배 시 계획을 수정한다.
 
 ### Cache-Safe Forking & Plan Mode
 - Plan Mode 진입 시 프리픽스 유지를 위해 파일 수정을 금지한다 (Read-only 모드).
@@ -121,10 +149,10 @@ git rev-parse --is-inside-work-tree
 >
 > **프로젝트 (팀 공유):**
 > - `CLAUDE.md` — 프로젝트 고유 규칙 (최소 템플릿)
-> - `rules/MAP.md` — 도메인 라우팅 맵
-> - `memory/MEMORY.md` — 에피소딕 메모리 로그
-> - `plans/` — 플랜 관리 디렉토리
-> - `.harness_data/fine_tuning/` — 텔레메트리 데이터
+> - `.cram-harness/rules/MAP.md` — 도메인 라우팅 맵
+> - `.cram-harness/memory/MEMORY.md` — 에피소딕 메모리 로그
+> - `.cram-harness/plans/` — 플랜 관리 디렉토리
+> - `.cram-harness/data/fine_tuning/` — 텔레메트리 데이터
 >
 > **참고:** Claude 네이티브 메모리(`~/.claude/projects/`)는 세션 연속성을, CRAM은 구조화된 에피소딕 러닝을 담당합니다. 두 시스템은 보완 관계입니다.
 >
